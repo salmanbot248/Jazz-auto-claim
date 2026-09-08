@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       apk_link:
-        description: 'Jazz World APK download link'
+        description: 'Jazz World XAPK download link'
         required: true
 
 jobs:
@@ -13,23 +13,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download APK
-        run: curl -L "${{ github.event.inputs.apk_link }}" -o jazzworld.apk
-
-      - name: Get package name from APK
-        id: pkg
+      - name: Download and extract XAPK
         run: |
-          PKG=$(aapt dump badging jazzworld.apk | awk -F"'" '/package: name=/{print $2}')
-          echo "package=$PKG" >> $GITHUB_OUTPUT
-          echo "Detected package: $PKG"
+          curl -L "${{ github.event.inputs.apk_link }}" -o jazzworld.xapk
+          unzip -o jazzworld.xapk -d xapk_extracted
+          find xapk_extracted -name "*.apk"
+          cp xapk_extracted/com.jazz.jazzworld.apk jazzworld.apk
 
       - name: Emulator - install, launch, screenshot
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
+          arch: arm64-v8a
+          target: google_apis
           script: |
             adb install jazzworld.apk
-            adb shell monkey -p ${{ steps.pkg.outputs.package }} -c android.intent.category.LAUNCHER 1
+            adb shell monkey -p com.jazz.jazzworld -c android.intent.category.LAUNCHER 1
             sleep 15
             adb shell screencap -p /sdcard/screen.png
             adb pull /sdcard/screen.png screenshot.png
